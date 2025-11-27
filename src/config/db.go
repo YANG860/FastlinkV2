@@ -11,4 +11,5 @@ type RedisConfig struct {
 	Password        string        `mapstructure:"password"`
 	DB              int           `mapstructure:"db"`
 	RefreshTokenTTL time.Duration `mapstructure:"refreshTokenTTL"`
+	LinkTTL         time.Duration `mapstructure:"linkTTL"`
 }

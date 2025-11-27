@@ -15,6 +15,9 @@ type RefreshResponse struct {
 }
 
 func Refresh(c *gin.Context) {
+	auth.ParseToken(c)
+	auth.AuthRefreshToken(c)
+
 	token, exists := c.Get("token")
 	if !exists {
 		c.JSON(401, resp.Error(401, "Unauthorized"))

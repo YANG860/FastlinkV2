@@ -21,6 +21,8 @@ type LoginResponse struct {
 
 func Login(c *gin.Context) {
 
+	// TODO: 用户名的布隆过滤器
+
 	var req LoginRequest
 	var err error
 	var user db.User

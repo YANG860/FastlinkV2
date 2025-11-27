@@ -33,6 +33,7 @@ func BanUser(c *gin.Context) {
 		// 查找用户
 		// 更新用户的Banned字段
 		// 锁定用户和产生的链接
+		// 失效所有链接缓存
 
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, body.UserID).Error; err != nil {
 			return err
@@ -51,6 +52,8 @@ func BanUser(c *gin.Context) {
 				return err
 			}
 		}
+
+		// TODO: 失效缓存
 
 		return nil
 	})

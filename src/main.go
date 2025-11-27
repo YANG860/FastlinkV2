@@ -21,6 +21,15 @@ func main() {
 
 
 	
+	adminGroup := router.Group("/admin")
+	adminGroup.Use(auth.ParseToken, auth.AuthAdmin)
+	{
+		adminGroup.GET("/users", api.GetAllUser)
+		adminGroup.GET("/links", api.GetAllLink)
+		adminGroup.POST("/user/ban", api.BanUser)
+
+	}
+
 	ServerConfig := config.Server()
 	router.Run(ServerConfig.PortStr())
 }

@@ -15,16 +15,15 @@ type RefreshResponse struct {
 }
 
 func Refresh(c *gin.Context) {
-	auth.ParseToken(c)
-	auth.AuthRefreshToken(c)
-
-	token, exists := c.Get("token")
-	if !exists {
+	ok, err := auth.AuthRefreshToken(c)
+	if err != nil {
+		c.JSON(500, resp.Error(500, "Internal server error"))
+	}
+	if !ok {
 		c.JSON(401, resp.Error(401, "Unauthorized"))
-		return
 	}
 
-	refreshToken, _ := token.(*auth.Token)
+	refreshToken, _ := auth.ParseToken(c)
 	// 通过验证即可刷新Token
 	accessToken, err := auth.GenAccessToken(refreshToken)
 	if err != nil {

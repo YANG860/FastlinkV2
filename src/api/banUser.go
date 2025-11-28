@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fastlink/src/auth"
 	"fastlink/src/db"
 	resp "fastlink/src/response"
 
@@ -17,12 +18,21 @@ type BanUserResponse struct {
 }
 
 func BanUser(c *gin.Context) {
-	//admin only
+	
 
 	var err error
 	var body BanUserRequest
 	var user db.User
 	var links []db.Link
+	
+	//admin only
+	ok, err := auth.AuthAdmin(c)
+	if err != nil {
+		c.JSON(500, resp.Error(500, "Internal server error"))
+	}
+	if !ok {
+		c.JSON(403, resp.Error(403, "Forbidden"))
+	}
 
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.AbortWithStatusJSON(400, resp.Error(400, "Invalid request body"))

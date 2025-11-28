@@ -27,15 +27,20 @@ func Genlink(c *gin.Context) {
 	var link db.Link
 	var accessToken *auth.Token
 
-	token, exist := c.Get("token")
-	if !exist {
-		c.AbortWithStatusJSON(401, resp.Error(401, "Unauthorized"))
+	ok, err := auth.AuthAccessToken(c)
+	if err != nil {
+		c.JSON(500, resp.Error(500, "Internal server error"))
 		return
 	}
-	accessToken = token.(*auth.Token)
+	if !ok {
+		c.JSON(403, resp.Error(403, "Forbidden"))
+	}
+
+	accessToken, _ = auth.ParseToken(c)
+
 
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.AbortWithStatusJSON(400, resp.Error(400, "Invalid request body"))
+		c.JSON(400, resp.Error(400, "Invalid request body"))
 		return
 	}
 	// 拦截自定义短链接请求
@@ -43,6 +48,7 @@ func Genlink(c *gin.Context) {
 		genCustomLink(c, body)
 		return
 	}
+	
 	// 短链接
 	code := genShortCode(config.Server().ShortCodeLength)
 
@@ -80,5 +86,5 @@ func genShortCode(length int) string {
 }
 
 func genCustomLink(c *gin.Context, body GenlinkRequest) {
-
+	//TODO: 
 }

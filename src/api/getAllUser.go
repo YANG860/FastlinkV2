@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fastlink/src/auth"
 	"fastlink/src/db"
 	resp "fastlink/src/response"
 
@@ -17,8 +18,18 @@ type GetAllUserResponse struct {
 
 func GetAllUser(c *gin.Context) {
 	// Admin only
+
 	var records []db.User
 	var err error
+
+	ok, err := auth.AuthAdmin(c)
+	if err != nil {
+		c.JSON(500, resp.Error(500, "Internal server error"))
+	}
+	if !ok {
+		c.JSON(403, resp.Error(403, "Forbidden"))
+	}
+
 	records, err = gorm.G[db.User](db.MySQLClient).Order("id ASC").Find(db.Ctx)
 	if err != nil {
 		c.AbortWithStatusJSON(500, resp.Error(500, "internal server error"))

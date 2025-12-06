@@ -2,34 +2,117 @@ package api
 
 import (
 	"fastlink/src/auth"
+	"fastlink/src/db"
 	resp "fastlink/src/response"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
+	"gorm.io/gorm"
 )
 
 func Redirect(c *gin.Context) {
 	//TODO:
+	var link db.Link
+	var err error
+
+	shortCode := c.Param("shortCode")
+
+	link, err = db.FetchLink(shortCode)
+
+	switch err {
+	case nil:
+		//nil
+	case redis.Nil:
+
+		link, err = gorm.G[db.Link](db.MySQLClient).Where("short_code = ?", shortCode).First(db.Ctx)
+
+		switch err {
+		case nil:
+			//nil
+		case gorm.ErrRecordNotFound:
+			c.JSON(404, resp.Error(404, "Link not found"))
+			return
+		default:
+			c.JSON(500, resp.Error(500, "Internal server error"))
+			return
+		}
+
+	default:
+		c.JSON(500, resp.Error(500, "Internal server error"))
+		return
+
+	}
+
+	if link.Type != db.LinkTypeOneShot {
+		// 更新缓存
+		db.CacheLink(link, true)
+		db.UpdateLinkTTL(link.ShortCode)
+	}
+
+	switch link.Type {
+	case db.LinkTypeCustom:
+		redirectCustom(c, link)
+	case db.LinkTypeGeneral:
+		redirectGeneral(c, link)
+	case db.LinkTypePrivate:
+		redirectPrivate(c, link)
+	case db.LinkTypeOneShot:
+		redirectOneShot(c, link)
+	default:
+		c.JSON(500, resp.Error(500, "Internal server error"))
+	}
 
 }
 
-func redirectCustom(c *gin.Context) {
+func redirectCustom(c *gin.Context, link db.Link) {
 	// currently same as general
-	redirectGeneral(c)
+	redirectGeneral(c, link)
 }
-func redirectGeneral(c *gin.Context) {
-	//todo
-}
-func redirectPrivate(c *gin.Context) {
+
+func redirectPrivate(c *gin.Context, link db.Link) {
 	//todo
 	ok, err := auth.AuthAccessToken(c)
 	if err != nil {
 		c.JSON(500, resp.Error(500, "Internal server error"))
+		return
 	}
 	if !ok {
 		c.JSON(403, resp.Error(403, "Forbidden"))
+		return
+	}
+	redirectGeneral(c, link)
+}
+
+func redirectGeneral(c *gin.Context, link db.Link) {
+
+	// 更新访问计数
+	// TODO: 单例定时任务异步处理，定时批量更新
+	//
+
+	c.Redirect(302, link.SourceURL)
+}
+
+func redirectOneShot(c *gin.Context, link db.Link) {
+	// 检查是否已被访问
+	var err error
+	var rowsAffected int64
+
+	err = db.MySQLClient.Transaction(func(tx *gorm.DB) error {
+		result := tx.Model(&db.Link{}).Where("id = ? AND access_count = 0", link.ID).Update("access_count", gorm.Expr("access_count + ?", 1))
+		err = result.Error
+		rowsAffected = result.RowsAffected
+		return err
+	})
+	if err != nil {
+		c.JSON(500, resp.Error(500, "Internal server error"))
+		return
 	}
 
-}
-func redirectOneShot(c *gin.Context) {
-	//todo
+	if rowsAffected == 0 {
+		// 已经被访问过
+		c.JSON(404, resp.Error(404, "Link not found"))
+		return
+	}
+
+	redirectGeneral(c, link)
 }

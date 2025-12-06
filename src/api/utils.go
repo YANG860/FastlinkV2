@@ -1,9 +1,6 @@
 package api
 
 import (
-	"math/rand"
-	"time"
-
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -13,17 +10,6 @@ func hash(password string) string {
 		return ""
 	}
 	return string(hashed)
-}
-
-func randStr() string {
-	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-
-	b := make([]byte, 16)
-	for i := range b {
-		b[i] = letters[r.Intn(len(letters))]
-	}
-	return string(b)
 }
 
 func CheckPasswordHash(password, hash string) bool {

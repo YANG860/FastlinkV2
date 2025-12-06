@@ -2,8 +2,10 @@ package api
 
 import (
 	"fastlink/src/auth"
+	"fastlink/src/config"
 	"fastlink/src/db"
 	resp "fastlink/src/response"
+	"fastlink/src/utils"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -50,7 +52,7 @@ func Login(c *gin.Context) {
 	// 更新旧的Tokenid，使用事务
 	err = db.MySQLClient.Transaction(func(tx *gorm.DB) error {
 
-		newTokenID := randStr()
+		newTokenID := utils.RandStr(config.Jwt().RefreshTokenIDLength)
 		// 数据库更新用户的AccessTokenID
 		user.AccessTokenID = newTokenID
 		if err := tx.Save(&user).Error; err != nil {

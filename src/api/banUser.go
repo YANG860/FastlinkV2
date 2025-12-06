@@ -18,13 +18,12 @@ type BanUserResponse struct {
 }
 
 func BanUser(c *gin.Context) {
-	
 
 	var err error
 	var body BanUserRequest
 	var user db.User
 	var links []db.Link
-	
+
 	//admin only
 	ok, err := auth.AuthAdmin(c)
 	if err != nil {
@@ -56,14 +55,16 @@ func BanUser(c *gin.Context) {
 			return err
 		}
 
+		// 失效缓存
 		for _, link := range links {
 			link.Type = db.LinkTypePrivate
 			if err := tx.Save(&link).Error; err != nil {
 				return err
 			}
+			if err := db.DeleteLinkCache(link.ShortCode); err != nil {
+				return err
+			}
 		}
-
-		// TODO: 失效缓存
 
 		return nil
 	})
@@ -73,5 +74,5 @@ func BanUser(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, BanUserResponse{})
+	c.JSON(200, resp.OK(200, BanUserResponse{}))
 }

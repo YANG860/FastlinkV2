@@ -17,19 +17,25 @@ type GetLinkByUserResponse struct {
 }
 
 func GetLinkByUser(c *gin.Context) {
-	//todo
+	
 
 	var token *auth.Token
 	var records []db.Link
-	t, exists := c.Get("token")
-	if !exists {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+
+	ok, err := auth.AuthAccessToken(c)
+	if err != nil {
+		c.JSON(500, resp.Error(500, "internal server error"))
 		return
 	}
-	token = t.(*auth.Token)
-	records, err := gorm.G[db.Link](db.MySQLClient).Where("user_id = ?", token.UserID).Find(db.Ctx)
+	if !ok {
+		c.JSON(401, resp.Error(401, "Unauthorized"))
+		return	
+	}
+	
+	token, _ = auth.ParseToken(c)
+	records, err = gorm.G[db.Link](db.MySQLClient).Where("user_id = ?", token.UserID).Find(db.Ctx)
 	if err != nil {
-		c.AbortWithStatusJSON(500, resp.Error(500, "internal server error"))
+		c.JSON(500, resp.Error(500, "internal server error"))
 		return
 	}
 

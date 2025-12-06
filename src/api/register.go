@@ -1,8 +1,10 @@
 package api
 
 import (
+	"fastlink/src/config"
 	"fastlink/src/db"
 	resp "fastlink/src/response"
+	"fastlink/src/utils"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -36,7 +38,7 @@ func Register(c *gin.Context) {
 	// 创建用户
 	NewUser.Username = req.Username
 	NewUser.PasswordHash = hash(req.Password)
-	NewUser.AccessTokenID = randStr()
+	NewUser.AccessTokenID = utils.RandStr(config.Jwt().RefreshTokenIDLength)
 
 	err = db.MySQLClient.Transaction(func(tx *gorm.DB) error {
 		// 使用OnConflict避免竞态条件

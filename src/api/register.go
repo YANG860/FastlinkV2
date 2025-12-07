@@ -69,6 +69,9 @@ func Register(c *gin.Context) {
 
 	// 添加到布隆过滤器
 	err = db.UsernameBloomFilterAdd(req.Username)
+	if err != nil {
+		slog.Error("Failed to add username to bloom filter", "error", err)
+	}
 
 	c.JSON(201, resp.OK(201, RegisterResponse{}))
 }

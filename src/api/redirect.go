@@ -16,7 +16,7 @@ import (
 var cacheSyncManager = utils.NewTaskManager[string]()
 
 func Redirect(c *gin.Context) {
-
+	
 	var link db.Link
 	var err error
 
@@ -33,7 +33,7 @@ func Redirect(c *gin.Context) {
 
 		switch err {
 		case nil:
-			//nil
+			db.CacheLink(link, true)
 		case gorm.ErrRecordNotFound:
 			slog.Warn("Link not found", "shortCode", shortCode)
 			c.JSON(404, resp.Error(404, "Link not found"))
@@ -48,14 +48,9 @@ func Redirect(c *gin.Context) {
 		slog.Error("Failed to retrieve link from cache", "error", err)
 		c.JSON(500, resp.Error(500, "Internal server error"))
 		return
-
 	}
 
-	if link.Type != db.LinkTypeOneShot {
-		// 更新缓存
-		db.CacheLink(link, true)
-		db.UpdateLinkTTL(link.ShortCode)
-	}
+	db.UpdateLinkTTL(link.ShortCode)
 
 	switch link.Type {
 	case db.LinkTypeCustom:

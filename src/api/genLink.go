@@ -70,6 +70,12 @@ func Genlink(c *gin.Context) {
 		return
 	}
 	userID_Uint := uint(userID)
+	// 检查短链接是否在黑名单中
+	err = db.MySQLClient.Find(&db.UrlBlacklist{}, "url = ?", body.SourceURL).Error
+	if err == nil {
+		c.AbortWithStatusJSON(400, resp.Error(400, "The source URL is blacklisted"))
+		return
+	}
 
 	link = db.Link{
 		Type:      body.LinkType,

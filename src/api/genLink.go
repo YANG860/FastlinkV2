@@ -13,13 +13,13 @@ import (
 )
 
 type GenlinkRequest struct {
-	LinkType  string `json:"linkType" binding:"required"`
-	SourceURL string `json:"sourceUrl" binding:"required,url"`
-	ShortCode string `json:"shortCode" binding:"omitempty,alphanum"`
+	LinkType  string `json:"link_type" binding:"required"`
+	SourceURL string `json:"source_url" binding:"required,url"`
+	ShortCode string `json:"short_code" binding:"omitempty,alphanum"`
 }
 
 type GenlinkResponse struct {
-	Url string `json:"shortCode"`
+	Url string `json:"short_code"`
 }
 
 func Genlink(c *gin.Context) {
@@ -45,8 +45,11 @@ func Genlink(c *gin.Context) {
 
 	accessToken, _ = auth.ParseToken(c)
 
-	if body.LinkType == db.LinkTypeCustom {
-		// 拦截自定义短链接请求
+	switch body.LinkType {
+	case db.LinkTypePrivate, db.LinkTypeGeneral, db.LinkTypeOneShot:
+		code = genShortCode(config.Server().ShortCodeLength)
+
+	case db.LinkTypeCustom:
 		exist, err := db.ShortCodeBloomFilterExists(body.ShortCode)
 		if err != nil {
 			c.AbortWithStatusJSON(500, resp.Error(500, "Internal server error"))
@@ -59,9 +62,9 @@ func Genlink(c *gin.Context) {
 		}
 
 		code = body.ShortCode
-	} else {
-		// 一般短链接
-		code = genShortCode(config.Server().ShortCodeLength)
+	default:
+		c.AbortWithStatusJSON(400, resp.Error(400, "Invalid link type"))
+		return
 	}
 
 	userID, err := strconv.ParseUint(accessToken.UserID, 10, 32)

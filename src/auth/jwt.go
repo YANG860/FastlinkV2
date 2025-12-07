@@ -13,7 +13,7 @@ func GenRefreshToken(user *db.User) (string, error) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &Token{
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(config.Jwt().AccessTokenTTL)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(config.Jwt().RefreshTokenTTL)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			ID:        user.AccessTokenID,
 			Issuer:    "fastlink",
@@ -35,7 +35,7 @@ func GenAccessToken(token *Token) (string, error) {
 
 	token.Type = AccessTokenType
 	token.IssuedAt = jwt.NewNumericDate(time.Now())
-	token.ExpiresAt = jwt.NewNumericDate(time.Now().Add(config.Jwt().RefreshTokenTTL))
+	token.ExpiresAt = jwt.NewNumericDate(time.Now().Add(config.Jwt().AccessTokenTTL))
 
 	RefreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, token)
 

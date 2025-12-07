@@ -45,7 +45,6 @@ func Genlink(c *gin.Context) {
 
 	accessToken, _ = auth.ParseToken(c)
 
-	
 	if body.LinkType == db.LinkTypeCustom {
 		// 拦截自定义短链接请求
 		exist, err := db.ShortCodeBloomFilterExists(body.ShortCode)
@@ -103,8 +102,8 @@ func genShortCode(length int) string {
 		if exist {
 			continue
 		}
+		db.ShortCodeBloomFilterAdd(code)
 		return code
 	}
 
 }
-

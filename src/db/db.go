@@ -30,7 +30,9 @@ func connectMySQL() error {
 	mysqlConfig := config.MySQL()
 
 	var err error
-	MySQLClient, err = gorm.Open(mysql.Open(mysqlConfig.DSN), &gorm.Config{})
+	MySQLClient, err = gorm.Open(mysql.Open(mysqlConfig.DSN), &gorm.Config{
+		TranslateError: true,
+	})
 	if err == nil {
 		err = MySQLClient.AutoMigrate(&User{}, &Link{}, &Admin{})
 	}

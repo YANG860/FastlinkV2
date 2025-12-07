@@ -23,13 +23,22 @@ type LoginResponse struct {
 
 func Login(c *gin.Context) {
 
-	// TODO: 用户名的布隆过滤器
+	
 
 	var req LoginRequest
 	var err error
 	var user db.User
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, resp.Error(400, "Invalid request"))
+		return
+	}
+	exist, err := db.UsernameBloomFilterExists(req.Username)
+	if err != nil {
+		c.JSON(500, resp.Error(500, "Internal server error"))
+		return
+	}
+	if !exist {
+		c.JSON(401, resp.Error(401, "Invalid username or password"))
 		return
 	}
 

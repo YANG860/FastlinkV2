@@ -8,6 +8,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
+type GetAllLinkRequest struct {
+}
+
+type GetAllLinkResponse struct {
+	Links []db.Link `json:"links"`
+}
+
 
 func GetAllLink(c *gin.Context) {
 	//admin only
@@ -28,6 +35,6 @@ func GetAllLink(c *gin.Context) {
 		c.AbortWithStatusJSON(500, resp.Error(500, "internal server error"))
 		return
 	}
-	c.JSON(200, resp.OK(200, records))
+	c.JSON(200, resp.OK(200, GetAllLinkResponse{Links: records}))
 
 }

@@ -30,29 +30,46 @@ func UpdateRefreshTokenTTL(UserID string) error {
 }
 
 func CacheLink(link Link, NX bool) error {
+	// 重构
+	// 使用hash
+
 	key := "fastlink:link:" + link.ShortCode
-	data, err := json.Marshal(link)
+	fields := map[string]interface{}{
+		"id":         link.ID,
+		"created_at": link.CreatedAt,
+		"updated_at": link.UpdatedAt,
+		"deleted_at": link.DeletedAt,
+		"type":       link.Type,
+		"creator_id": link.CreatorID,
+		"source_url": link.SourceURL,
+		"short_code": link.ShortCode,
+		"clicks":     link.Clicks,
+	}
+
+	err := RedisClient.HSet(Ctx, key, fields).Err()
+
 	if err != nil {
 		return err
 	}
 
-	// 
-	if NX {
-		err := RedisClient.SetNX(Ctx, key, data, config.Redis().LinkTTL).Err()
-		return err
-	} else {
-		err := RedisClient.Set(Ctx, key, data, config.Redis().LinkTTL).Err()
-		return err
-	}
+	return RedisClient.Expire(Ctx, key, config.Redis().LinkTTL).Err()
 }
 
 func FetchLink(shortCode string) (Link, error) {
-	var link Link
-	s, err := RedisClient.Get(Ctx, "fastlink:link:"+shortCode).Result()
+
+	key := "fastlink:link:" + shortCode
+	fields, err := RedisClient.HGetAll(Ctx, key).Result()
 	if err != nil {
 		return Link{}, err
 	}
-	if err := json.Unmarshal([]byte(s), &link); err != nil {
+
+	var link Link
+	
+	data, err := json.Marshal(fields)
+	if err != nil {
+		return Link{}, err
+	}
+	if err := json.Unmarshal(data, &link); err != nil {
 		return Link{}, err
 	}
 	return link, nil
@@ -67,11 +84,14 @@ func UpdateLinkTTL(shortCode string) error {
 	err := RedisClient.Expire(Ctx, "fastlink:link:"+shortCode, config.Redis().LinkTTL).Err()
 	return err
 }
-	
 
+func UpdateLinkClicks(shortCode string) error {
+		err := RedisClient.HIncrBy(Ctx, "fastlink:link:"+shortCode, "clicks", 1).Err()
+	return err
+}
 
-func AddUsernameBloomFilter(username string) error {
-	
+func UsernameBloomFilterAdd(username string) error {
+
 	err := RedisClient.BFAdd(Ctx, "fastlink:username:bloom", username).Err()
 	if err != nil {
 		return err
@@ -81,7 +101,7 @@ func AddUsernameBloomFilter(username string) error {
 }
 
 func UsernameBloomFilterExists(username string) (bool, error) {
-	
+
 	exists, err := RedisClient.BFExists(Ctx, "fastlink:username:bloom", username).Result()
 	if err != nil {
 		return false, err
@@ -90,18 +110,17 @@ func UsernameBloomFilterExists(username string) (bool, error) {
 	return exists, nil
 }
 
-func AddShortCodeBloomFilter(shortCode string) error {
-	
+func ShortCodeBloomFilterAdd(shortCode string) error {
+
 	err := RedisClient.BFAdd(Ctx, "fastlink:shortcode:bloom", shortCode).Err()
 	if err != nil {
 		return err
-	}	
+	}
 
 	return nil
 }
 
 func ShortCodeBloomFilterExists(shortCode string) (bool, error) {
-	
 
 	exists, err := RedisClient.BFExists(Ctx, "fastlink:shortcode:bloom", shortCode).Result()
 	if err != nil {

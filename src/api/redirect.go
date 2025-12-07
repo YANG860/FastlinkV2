@@ -2,16 +2,20 @@ package api
 
 import (
 	"fastlink/src/auth"
+	"fastlink/src/config"
 	"fastlink/src/db"
 	resp "fastlink/src/response"
+	"fastlink/src/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
+var cacheSyncManager = utils.NewTaskManager[string]()
+
 func Redirect(c *gin.Context) {
-	//TODO:
+
 	var link db.Link
 	var err error
 
@@ -86,9 +90,28 @@ func redirectPrivate(c *gin.Context, link db.Link) {
 func redirectGeneral(c *gin.Context, link db.Link) {
 
 	// 更新访问计数
-	// TODO: 单例定时任务异步处理，定时批量更新
-	//
 
+	err := db.UpdateLinkClicks(link.ShortCode)
+	if err != nil {
+		c.JSON(500, resp.Error(500, "Internal server error"))
+		return
+	}
+
+	// 单例定时任务异步处理，定时批量更新
+	cacheSyncManager.NewTask(config.Redis().ClickWriteBackInterval, link.ShortCode, func(shortCode string) {
+		// 从缓存读取点击数
+		cachedLink, err := db.FetchLink(shortCode)
+		if err != nil {
+			return
+		}
+		// 更新数据库
+		_, err = gorm.G[db.Link](db.MySQLClient).Where("short_code = ?", shortCode).Update(db.Ctx, "clicks", cachedLink.Clicks)
+		if err != nil {
+			return
+		}
+	})
+
+	// 重定向
 	c.Redirect(302, link.SourceURL)
 }
 

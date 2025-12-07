@@ -6,6 +6,7 @@ import (
 	"fastlink/src/db"
 	resp "fastlink/src/response"
 	"fastlink/src/utils"
+	"log/slog"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -34,14 +35,17 @@ func Redirect(c *gin.Context) {
 		case nil:
 			//nil
 		case gorm.ErrRecordNotFound:
+			slog.Warn("Link not found", "shortCode", shortCode)
 			c.JSON(404, resp.Error(404, "Link not found"))
 			return
 		default:
+			slog.Error("Failed to retrieve link from database", "error", err)
 			c.JSON(500, resp.Error(500, "Internal server error"))
 			return
 		}
 
 	default:
+		slog.Error("Failed to retrieve link from cache", "error", err)
 		c.JSON(500, resp.Error(500, "Internal server error"))
 		return
 
@@ -63,7 +67,9 @@ func Redirect(c *gin.Context) {
 	case db.LinkTypeOneShot:
 		redirectOneShot(c, link)
 	default:
+		slog.Error("Invalid link type", "type", link.Type)
 		c.JSON(500, resp.Error(500, "Internal server error"))
+		return
 	}
 
 }
@@ -77,10 +83,12 @@ func redirectPrivate(c *gin.Context, link db.Link) {
 	//todo
 	ok, err := auth.AuthAccessToken(c)
 	if err != nil {
+		slog.Error("Failed to authenticate access token", "error", err)
 		c.JSON(500, resp.Error(500, "Internal server error"))
 		return
 	}
 	if !ok {
+		slog.Warn("Unauthorized access attempt")
 		c.JSON(403, resp.Error(403, "Forbidden"))
 		return
 	}
@@ -93,6 +101,7 @@ func redirectGeneral(c *gin.Context, link db.Link) {
 
 	err := db.UpdateLinkClicks(link.ShortCode)
 	if err != nil {
+		slog.Error("Failed to update link clicks", "error", err)
 		c.JSON(500, resp.Error(500, "Internal server error"))
 		return
 	}
@@ -107,6 +116,7 @@ func redirectGeneral(c *gin.Context, link db.Link) {
 		// 更新数据库
 		_, err = gorm.G[db.Link](db.MySQLClient).Where("short_code = ?", shortCode).Update(db.Ctx, "clicks", cachedLink.Clicks)
 		if err != nil {
+			slog.Error("Failed to update link clicks in database", "error", err)
 			return
 		}
 	})
@@ -127,12 +137,14 @@ func redirectOneShot(c *gin.Context, link db.Link) {
 		return err
 	})
 	if err != nil {
+		slog.Error("Failed to update one-shot link access count", "error", err)
 		c.JSON(500, resp.Error(500, "Internal server error"))
 		return
 	}
 
 	if rowsAffected == 0 {
 		// 已经被访问过
+		slog.Warn("One-shot link already accessed", "shortCode", link.ShortCode)
 		c.JSON(404, resp.Error(404, "Link not found"))
 		return
 	}

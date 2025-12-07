@@ -6,6 +6,7 @@ import (
 	"fastlink/src/db"
 	resp "fastlink/src/response"
 	"fastlink/src/utils"
+	"log/slog"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -30,16 +31,19 @@ func Genlink(c *gin.Context) {
 	var code string
 
 	if err := c.ShouldBindJSON(&body); err != nil {
+		slog.Warn("Invalid request body", "error", err)
 		c.JSON(400, resp.Error(400, "Invalid request body"))
 		return
 	}
 
 	ok, err := auth.AuthAccessToken(c)
 	if err != nil {
+		slog.Error("Failed to authenticate access token", "error", err)
 		c.JSON(500, resp.Error(500, "Internal server error"))
 		return
 	}
 	if !ok {
+		slog.Warn("Unauthorized access attempt")
 		c.JSON(403, resp.Error(403, "Forbidden"))
 	}
 
@@ -49,12 +53,14 @@ func Genlink(c *gin.Context) {
 		// 拦截自定义短链接请求
 		exist, err := db.ShortCodeBloomFilterExists(body.ShortCode)
 		if err != nil {
-			c.AbortWithStatusJSON(500, resp.Error(500, "Internal server error"))
+			slog.Error("Failed to check short code existence", "error", err)
+			c.JSON(500, resp.Error(500, "Internal server error"))
 			return
 		}
 
 		if exist {
-			c.AbortWithStatusJSON(400, resp.Error(400, "Short code already exists"))
+			slog.Warn("Short code already exists", "shortCode", body.ShortCode)
+			c.JSON(400, resp.Error(400, "Short code already exists"))
 			return
 		}
 
@@ -66,14 +72,16 @@ func Genlink(c *gin.Context) {
 
 	userID, err := strconv.ParseUint(accessToken.UserID, 10, 32)
 	if err != nil {
-		c.AbortWithStatusJSON(500, resp.Error(500, "Invalid user ID"))
+		slog.Error("Invalid user ID", "error", err)
+		c.JSON(500, resp.Error(500, "Invalid user ID"))
 		return
 	}
 	userID_Uint := uint(userID)
 	// 检查短链接是否在黑名单中
 	err = db.MySQLClient.Find(&db.UrlBlacklist{}, "url = ?", body.SourceURL).Error
 	if err == nil {
-		c.AbortWithStatusJSON(400, resp.Error(400, "The source URL is blacklisted"))
+		slog.Warn("Source URL is blacklisted", "sourceUrl", body.SourceURL)
+		c.JSON(400, resp.Error(400, "The source URL is blacklisted"))
 		return
 	}
 
@@ -85,12 +93,14 @@ func Genlink(c *gin.Context) {
 	}
 	// 保存到数据库
 	if err := gorm.G[db.Link](db.MySQLClient).Create(db.Ctx, &link); err != nil {
-		c.AbortWithStatusJSON(500, resp.Error(500, "Failed to create link"))
+		slog.Error("Failed to create link", "error", err)
+		c.JSON(500, resp.Error(500, "Failed to create link"))
 		return
 	}
 
 	url := config.Server().Domain + "/" + code
 
+	
 	c.JSON(200, resp.OK(200, GenlinkResponse{
 		Url: url,
 	}))

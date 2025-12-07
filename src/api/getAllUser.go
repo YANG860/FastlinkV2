@@ -27,10 +27,12 @@ func GetAllUser(c *gin.Context) {
 	if err != nil {
 		slog.Error("Failed to authenticate admin", "error", err)
 		c.JSON(500, resp.Error(500, "Internal server error"))
+		return
 	}
 	if !ok {
 		slog.Warn("Unauthorized admin access attempt")
 		c.JSON(403, resp.Error(403, "Forbidden"))
+		return
 	}
 
 	records, err = gorm.G[db.User](db.MySQLClient).Order("id ASC").Find(db.Ctx)

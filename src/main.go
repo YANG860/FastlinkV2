@@ -18,12 +18,15 @@ func main() {
 	router.POST("/login", api.Login)
 	router.GET("/refresh", api.Refresh)
 
-	router.GET("/users", api.GetAllUser)
-	router.GET("/links", api.GetAllLink)
-	router.POST("/user/ban", api.BanUser)
-	
+	router.GET("/users/all", api.GetAllUser)
+	router.GET("/links/all", api.GetAllLink)
 
-	
+	router.GET("/user/links", api.GetLinkByUser)
+	router.POST("/user/ban", api.BanUser)
+	router.POST("/link/new", api.Genlink)
+
+	router.GET(":shortCode", api.Redirect)
+
 	ServerConfig := config.Server()
 	router.Run(ServerConfig.PortStr())
 }

@@ -25,7 +25,8 @@ func main() {
 	router.POST("/user/ban", api.BanUser)
 	router.POST("/link/new", api.Genlink)
 
-	router.GET(":shortCode", api.Redirect)
+	router.GET("/favicon.ico", func(ctx *gin.Context) { ctx.Status(204) })
+	router.GET("/:shortCode", api.Redirect)
 
 	ServerConfig := config.Server()
 	router.Run(ServerConfig.PortStr())

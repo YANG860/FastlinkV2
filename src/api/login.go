@@ -6,6 +6,7 @@ import (
 	"fastlink/src/db"
 	resp "fastlink/src/response"
 	"fastlink/src/utils"
+	"log/slog"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -23,37 +24,41 @@ type LoginResponse struct {
 
 func Login(c *gin.Context) {
 
-	
-
 	var req LoginRequest
 	var err error
 	var user db.User
 	if err := c.ShouldBindJSON(&req); err != nil {
+		slog.Warn("Invalid request body", "error", err)
 		c.JSON(400, resp.Error(400, "Invalid request"))
 		return
 	}
 	exist, err := db.UsernameBloomFilterExists(req.Username)
 	if err != nil {
+		slog.Error("Failed to check username existence", "error", err)
 		c.JSON(500, resp.Error(500, "Internal server error"))
 		return
 	}
 	if !exist {
+		slog.Warn("Username does not exist", "username", req.Username)
 		c.JSON(401, resp.Error(401, "Invalid username or password"))
 		return
 	}
 
 	err = db.MySQLClient.Where("username = ?", req.Username).First(&user).Error
 	if err != nil {
+		slog.Error("Failed to retrieve user", "error", err)
 		c.JSON(401, resp.Error(401, "Invalid username or password"))
 		return
 	}
 	// 验证密码
 	if !CheckPasswordHash(req.Password, user.PasswordHash) {
+		slog.Warn("Invalid password attempt", "username", req.Username)
 		c.JSON(401, resp.Error(401, "Invalid username or password"))
 		return
 	}
 
 	if user.Banned {
+		slog.Warn("Banned user login attempt", "username", req.Username)
 		c.JSON(403, resp.Error(403, "User is banned"))
 		return
 	}
@@ -80,12 +85,14 @@ func Login(c *gin.Context) {
 	})
 
 	if err != nil {
+		slog.Error("Failed to update access token ID", "error", err)
 		c.JSON(500, resp.Error(500, err.Error()))
 		return
 	}
 
 	refreshToken, err := auth.GenRefreshToken(&user)
 	if err != nil {
+		slog.Error("Failed to generate refresh token", "error", err)
 		c.JSON(500, resp.Error(500, err.Error()))
 		return
 	}

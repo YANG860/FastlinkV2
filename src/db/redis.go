@@ -3,6 +3,8 @@ package db
 import (
 	"encoding/json"
 	"fastlink/src/config"
+
+	"github.com/redis/go-redis/v9"
 )
 
 func CacheRefreshTokenID(UserID string, ID string, NX bool) error {
@@ -62,9 +64,12 @@ func FetchLink(shortCode string) (Link, error) {
 	if err != nil {
 		return Link{}, err
 	}
+	if len(fields) == 0 {
+		return Link{}, redis.Nil
+	}
 
 	var link Link
-	
+
 	data, err := json.Marshal(fields)
 	if err != nil {
 		return Link{}, err
@@ -86,7 +91,7 @@ func UpdateLinkTTL(shortCode string) error {
 }
 
 func UpdateLinkClicks(shortCode string) error {
-		err := RedisClient.HIncrBy(Ctx, "fastlink:link:"+shortCode, "clicks", 1).Err()
+	err := RedisClient.HIncrBy(Ctx, "fastlink:link:"+shortCode, "clicks", 1).Err()
 	return err
 }
 

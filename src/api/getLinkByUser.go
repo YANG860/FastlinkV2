@@ -35,7 +35,7 @@ func GetLinkByUser(c *gin.Context) {
 	}
 
 	token, _ = auth.ParseToken(c)
-	records, err = gorm.G[db.Link](db.MySQLClient).Where("user_id = ?", token.UserID).Find(db.Ctx)
+	records, err = gorm.G[db.Link](db.MySQLClient).Where("creator_id = ?", token.UserID).Find(db.Ctx)
 	if err != nil {
 		slog.Error("Failed to retrieve links by user", "error", err)
 		c.JSON(500, resp.Error(500, "internal server error"))
